@@ -1,0 +1,83 @@
+== DinD Jenkins Agents
+
+The agent is based on the official https://github.com/docker-library/docker[docker] (dind) image. 
+
+It contains Java / Git / Make and the AWS CLI. It starts a docker daemon. 
+
+If any argument is provided, they are executed once the daemon is up and running.
+
+== Purpose
+
+The purpose of that image is to serve as a DinD agent in a Jenkins instance over Kubernetes. To connect the container to Jenkins, the jenkins remoting binaries must be launched. This https://github.com/jenkinsci/docker-jnlp-slave/blob/master/jenkins-slave[script] is a good example.
+
+=== Usage
+
+Starts the container and exit:
+
+```bash
+docker run --privileged dind-agent
+``` 
+
+Starts the container and print the `docker info`:
+
+```bash
+docker run --privileged dind-agent docker info
+```
+
+=== Usage as a Jenkins agent
+
+In Kubernetes, the script that launches the Jenkins agent can be mounted from a ConfigMap:
+
+```yaml
+---
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata: 
+  name: "jenkins-dind-agent"
+  labels: 
+    name: "jenkins-dind-agent"
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: "jenkins-dind-agent"
+      labels: 
+        name: "jenkins-dind-agent"
+    spec: 
+      containers:
+      - name: dind-agent
+        image: dohbedoh/dind-agent
+        args:
+        - "/bin/sh"
+        - "/var/jenkins_config/jenkins-agent"
+        env:
+          - name: JENKINS_URL
+            value: "http://cje.example.com"
+          - name: JENKINS_AGENT_NAME
+            value: "dedicatedJNLPAgent"
+          - name: JENKINS_SECRET
+            value: c02454dd29892ba194dc5f98fb68f83463a8518da7be06254b460058114ac21d
+        livenessProbe:
+          exec:
+            command:
+            - uname
+            - -a
+          initialDelaySeconds: 60
+          timeoutSeconds: 1
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: jenkins-agent-volume
+          mountPath: /var/jenkins_config/jenkins-agent
+          subPath: jenkins-agent
+      volumes:
+      - name: jenkins-agent-volume
+        configMap:
+          name: jenkins-agent
+```
+
+In plain docker, the script could be mounted as a volume like the following or the image could be extended.
+
+```bash
+docker run --privileged -v $(pwd)/jenkins-agent:/var/jenkins_config/jenkins-agent dind-agent "/var/jenkins_config/jenkins-agent"
+```  
