@@ -1,0 +1,81 @@
+== Stress Jenkins Agents
+
+The agent is based on https://github.com/jenkinsci/docker-slave[jenkins/slave] image. 
+
+It contains https://manpages.ubuntu.com/manpages/artful/man1/stress-ng.1.html[stress-ng]. It needs to be run with `--privileged` to be able to use `stress-ng` otherwise it would not be able to work as expected.For example, stressing memory would not quite work and debugging logs would show a limitation to set the OOM Killer score `stress-ng: debug: [6] stress-ng-vm: can't set oom_score_adj`.  
+
+== Purpose
+
+The purpose of that image is to stress test Jenkins agent running in a containerized environment. To connect the container to Jenkins, the jenkins remoting binaries must be launched. This https://github.com/jenkinsci/docker-jnlp-slave/blob/master/jenkins-slave[script] is a good example.
+
+=== Usage
+
+Starts the container and exit:
+
+```bash
+docker run --privileged --rm dohbedoh/jenkins-stress-agent
+``` 
+
+Starts the container and stress memory with 2 workers continually writing memory to reach 256 MB memory per worker and timing out after 10 seconds:
+
+```bash
+docker run --privileged --rm --entrypoint=stress-ng dohbedoh/jenkins-stress-agent --vm 2 --vm-bytes 256M -v --timeout 10s
+``` 
+
+=== Usage as a Jenkins agent
+
+In Kubernetes, the script that launches the Jenkins agent can be mounted from a ConfigMap:
+
+```yaml
+---
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata: 
+  name: "jenkins-stress-agent"
+  labels: 
+    name: "jenkins-stress-agent"
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: "jenkins-stress-agent"
+      labels: 
+        name: "jenkins-stress-agent"
+    spec: 
+      containers:
+      - name: stress-agent
+        image: dohbedoh/jenkins-stress-agent
+        args:
+        - "/bin/sh"
+        - "/var/jenkins_config/jenkins-agent"
+        env:
+          - name: JENKINS_URL
+            value: "http://cje.example.com"
+          - name: JENKINS_AGENT_NAME
+            value: "dedicatedJNLPAgent"
+          - name: JENKINS_SECRET
+            value: c02454dd29892ba194dc5f98fb68f83463a8518da7be06254b460058114ac21d
+        livenessProbe:
+          exec:
+            command:
+            - uname
+            - -a
+          initialDelaySeconds: 60
+          timeoutSeconds: 1
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: jenkins-agent-volume
+          mountPath: /var/jenkins_config/jenkins-agent
+          subPath: jenkins-agent
+      volumes:
+      - name: jenkins-agent-volume
+        configMap:
+          name: jenkins-agent
+```
+
+In plain docker, the script could be mounted as a volume like the following or the image could be extended.
+
+```bash
+docker run --privileged --rm -v $(pwd)/jenkins-agent:/var/jenkins_config/jenkins-agent dohbedoh/jenkins-stress-agent "/var/jenkins_config/jenkins-agent"
+```  

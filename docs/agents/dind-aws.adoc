@@ -15,13 +15,13 @@ The purpose of that image is to serve as a DinD agent in a Jenkins instance over
 Starts the container and exit:
 
 ```bash
-docker run --privileged dind-agent
+docker run --privileged --rm jenkins-dind-aws-agent
 ``` 
 
 Starts the container and print the `docker info`:
 
 ```bash
-docker run --privileged dind-agent docker info
+docker run --privileged --rm jenkins-dind-aws-agent docker info
 ```
 
 === Usage as a Jenkins agent
