@@ -1,8 +1,8 @@
 == Stress Jenkins Agents
 
-The agent is based on https://github.com/jenkinsci/docker-slave[jenkins/slave] image. 
+The agent is based on https://github.com/jenkinsci/docker-jnlp-slave[jenkins/jnlp-slave] image. 
 
-It contains https://manpages.ubuntu.com/manpages/artful/man1/stress-ng.1.html[stress-ng]. It needs to be run with `--privileged` to be able to use `stress-ng` otherwise it would not be able to work as expected.For example, stressing memory would not quite work and debugging logs would show a limitation to set the OOM Killer score `stress-ng: debug: [6] stress-ng-vm: can't set oom_score_adj`.  
+It contains https://manpages.ubuntu.com/manpages/artful/man1/stress-ng.1.html[stress-ng]. It needs to be run with `--privileged` to be able to use `stress-ng` otherwise it would not be able to work as expected. For example, stressing memory would not quite work and debugging logs would show a limitation to set the OOM Killer score `stress-ng: debug: [6] stress-ng-vm: can't set oom_score_adj`.
 
 == Purpose
 
@@ -23,6 +23,46 @@ docker run --privileged --rm --entrypoint=stress-ng dohbedoh/jenkins-stress-agen
 ``` 
 
 === Usage as a Jenkins agent
+
+In Jenkins, it can be used with the https://github.com/jenkinsci/kubernetes-plugin[Kubernetes Plugin]. Here is an example of a declarative pipeline that simulate an `OOMKilled` during a pipeline build:
+
+```
+pipeline {
+  agent {
+    kubernetes {
+      yamlFile """
+metadata:
+  labels:
+    cloudbees.com/master: "dse-team-apac"
+    jenkins: "slave"
+    jenkins/stress: "true"
+spec:
+  containers:
+  - name: "jnlp"
+    image: "dohbedoh/jnlp-stress-agent:alpine"
+    imagePullPolicy: "Always"
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "0.2"
+      requests:
+        memory: "100Mi"
+        cpu: "0.2"
+    securityContext:
+      privileged: true
+    tty: true
+"""
+    }
+  }
+  stages {
+    stage('stress') {
+      steps {
+        sh "stress-ng --vm 2 --vm-bytes 1G  --timeout 30s -v"
+      }
+    }
+  }
+}
+```
 
 In Kubernetes, the script that launches the Jenkins agent can be mounted from a ConfigMap:
 
