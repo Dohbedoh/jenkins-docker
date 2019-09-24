@@ -15,10 +15,13 @@ RUN apk --update --no-cache add \
   openssh-client \
   nss
 
-ENV DOCKER_TLS_CERTDIR=/certs
-# Ensure the certs directory exists and has enough permissions for the entrypoint to generate / use the certificates
-RUN mkdir -p /certs /certs/client && chmod 1777 /certs /certs/client
-
 COPY dind-agent-entrypoint.sh /usr/local/bin/
+
+ENV AGENT_WORKDIR=/root/agent
+RUN mkdir /root/.jenkins && mkdir -p ${AGENT_WORKDIR}
+
+VOLUME /root/.jenkins
+VOLUME ${AGENT_WORKDIR}
+WORKDIR /root
 
 ENTRYPOINT ["dind-agent-entrypoint.sh"]
