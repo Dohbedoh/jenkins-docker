@@ -15,6 +15,6 @@ RUN apk --update --no-cache add \
   openssh-client \
   nss
 
-COPY dind-agent.sh /usr/local/bin/
+COPY dind-agent-entrypoint.sh /usr/local/bin/
 
-ENTRYPOINT ["dind-agent.sh"]
+ENTRYPOINT ["dind-agent-entrypoint.sh"]
