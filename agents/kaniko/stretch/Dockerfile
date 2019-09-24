@@ -23,5 +23,10 @@ VOLUME /busybox
 
 # The following could be used to preconfigure the image with the ECR docker credentials helper
 # RUN mkdir -p ${DOCKER_CONFIG} && echo '{"credsStore": "ecr-login"}' > ${DOCKER_CONFIG}/config.json
-WORKDIR /home/jenkins
+ENV AGENT_WORKDIR=/kaniko/agent
+RUN mkdir /kaniko/.jenkins && mkdir -p ${AGENT_WORKDIR}
+
+VOLUME /kaniko/.jenkins
+VOLUME ${AGENT_WORKDIR}
+WORKDIR /kaniko
 ENTRYPOINT ["/kaniko/executor"]
