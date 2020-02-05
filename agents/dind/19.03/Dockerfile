@@ -2,7 +2,7 @@ FROM docker:19.03-dind
 MAINTAINER Allan Burdajewicz <allan.burdajewicz@gmail.com>
 
 # See https://github.com/docker-library/openjdk/blob/master/8/jre/alpine/Dockerfile
-ARG JRE_VERSION=8.212.04-r1
+ARG JRE_VERSION=8.242.08-r0
 
 # Prepare image to be used as Jenkins Agent
 # TODO Remove NSS when fix for https://github.com/docker-library/openjdk/issues/289 is released
@@ -11,6 +11,7 @@ RUN apk --update --no-cache add \
   curl \
   git \
   jq \
+  bash \
   make \
   openssh-client \
   nss
