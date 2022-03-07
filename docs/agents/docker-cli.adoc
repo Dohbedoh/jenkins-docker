@@ -1,0 +1,56 @@
+== Docker CLI Jenkins Agents
+
+It contains Java / Git / Make / Docker CLI / Docker Compose CLI / GCR Credentials Helper / ECR Credentials Helper.
+
+== Purpose
+
+The purpose of that image is to be used as a Jenkins agent while being able to run docker command against a remote docker host. In Kubernetes, the docker host can simply be a side container in the Kubernetes Pod Agent.
+
+=== Usage
+
+=== Usage as a Jenkins agent
+
+In Jenkins with the Kubernetes plugin, a pod with a `dind` side container can be used and the variable `DOCKER_HOST` can be set in both `jnlp` and `dind` container so that `jnlp` run commands against the daemon in the `dind` container. There is need to switch container in a pJenkins pipeline to use docker:
+
+```yaml
+apiVersion: "v1"
+kind: "Pod"
+spec:
+  containers:
+  - name: "dind"
+    # docker:20.10.6-dind-rootless
+    image: "docker@sha256:bfc2af39af70d97b9e4231204d16445c1a584dd71067128503da5b8e96f42e65"
+    env:
+    - name: DOCKER_HOST
+      value: tcp://127.0.0.1:2375
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh","-c",'while (! docker version > /dev/null 2>&1); do echo "Waiting for Docker to launch..." && sleep 1; done']
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      privileged: true
+    tty: true
+    volumeMounts:
+    - name: docker-graph-storage
+      mountPath: /var/lib/docker
+  - name: "jnlp"
+    image: "dohbedoh/jnlp-dockercli-agent:debian-jdk11"
+    env:
+    - name: DOCKER_HOST
+      value: tcp://127.0.0.1:2375
+    imagePullPolicy: "IfNotPresent"
+    tty: true
+    volumeMounts:
+    - name: dshm
+      mountPath: /dev/shm
+  volumes:
+  - name: docker-graph-storage
+    emptyDir: {}
+  - name: dshm
+    emptyDir:
+      medium: Memory
+```
